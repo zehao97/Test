@@ -1,11 +1,12 @@
 #import from filip
-import time
-
 from filip.clients.ngsi_v2 import ContextBrokerClient, IoTAClient
 from filip.clients.mqtt import IoTAMQTTClient
 from filip.models.base import FiwareHeader
-from filip.utils.cleanup import clear_context_broker, clear_iot_agent
-from filip.models.ngsi_v2.context import ContextEntity, NamedContextAttribute
+from filip.utils.cleanup import clear_context_broker, clear_iot_agent, clear_quantumleap
+from filip.models.ngsi_v2.iot import \
+    Device, \
+    DeviceAttribute, \
+    ServiceGroup
 
 #import form packages
 import paho.mqtt.client as mqtt
@@ -13,98 +14,126 @@ from urllib.parse import urlparse
 import pandas as pd
 import json
 import matplotlib.pyplot as plt
+import time
 
 #verschiedene URL
-CB_URL= "http://134.130.166.184:1026"
-IOTA_URL= "http://134.130.166.184:4041"
-QL_URL="http://134.130.166.184:8668"
-MQTT_URL="http://134.130.166.184:1883"
+CB_URL = "http://134.130.166.184:1026"
+IOTA_URL = "http://134.130.166.184:4041"
+MQTT_Broker_URL ="mqtt://134.130.166.184:1883"
 
 #database
-Service='lem_test'
-Servcice_path='/'
-Topic_Energy_Building='jdu_zwu'
-APIKEY= 'huhuhu'
+Service = 'lem_test'
+Service_path = '/'
+APIKEY = Service_path.strip('/')
 
 #simulation time
-t_start=0
-t_end=23
-t_step=1
+t_start = 0
+t_end = 23
+t_step = 1
 
 if __name__ == '__main__':
     #create a fiware header
-    fiware_header=FiwareHeader(service=Service,
-                               service_path=Servcice_path)
+    fiware_header = FiwareHeader(service=Service,
+                                 service_path=Service_path)
 
     #clear the state of context broker and iot agent
-    clear_context_broker(url=CB_URL,fiware_header=fiware_header)
-    clear_iot_agent(url=IOTA_URL,fiware_header=fiware_header)
+    clear_context_broker(url=CB_URL, fiware_header=fiware_header)
+    clear_iot_agent(url=IOTA_URL, fiware_header=fiware_header)
 
-    #create the clients
-    cbc=ContextBrokerClient(url=CB_URL, fiware_header=fiware_header)
-    iotac=IoTAClient(url=IOTA_URL,fiware_header=fiware_header)
-    mqttc=mqtt.Client(protocol=mqtt.MQTTv5)
 
-    #create context entities for 6 Buildings and add the attributes
-    building_00 = ContextEntity(id="urn:ngsi-ld:building:00", type="Building")
-    building_01 = ContextEntity(id="urn:ngsi-ld:building:01", type="Building")
-    building_02 = ContextEntity(id="urn:ngsi-ld:building:02", type="Building")
-    building_03 = ContextEntity(id="urn:ngsi-ld:building:03", type="Building")
-    building_04 = ContextEntity(id="urn:ngsi-ld:building:04", type="Building")
-    building_05 = ContextEntity(id="urn:ngsi-ld:building:05", type="Building")
+    #create the clients and restore devices
+    cbc = ContextBrokerClient(url=CB_URL, fiware_header=fiware_header)
+    iotac = IoTAClient(url=IOTA_URL, fiware_header=fiware_header)
 
-    building_description=NamedContextAttribute(name="Description", type="Text", value="The Building involved in the Energymarkt")
-    building_00.add_attributes(attrs=[building_description])
+    #define lists to store historical data
+    history_demand = []
+    history_production = []
 
-    #provision the building entity
-    cbc.post_entity(entity=building_00, update=True)
+    # Create a service group and add it to your devices
+    service_group = ServiceGroup(apikey=APIKEY,
+                                 resource="/iot/json")
+
+    # create the 6 buildings devices, simulate time attribute, demand of building attribute and production of building attribute
+    t_sim = DeviceAttribute(name='simtime',
+                            object_id='t_sim',
+                            type="Number")
+    t_dem = DeviceAttribute(name='demand',
+                            object_id='t_dem',
+                            type='Number')
+    t_pro = DeviceAttribute(name='production',
+                            object_id='t_pro',
+                            type='Number')
+
+    building_000 = Device(device_id="device:000",
+                          entity_name="urn:ngsi-ld:Building:000",
+                          entity_type="Building",
+                          protocol='IOTA_JSON',
+                          transport='MQTT',
+                          attributes=[t_sim, t_dem, t_pro],
+                          commands=[])
+
+    #Provision service group and add it to your IOTAClient
+    iotac.post_group(service_group=service_group, update=True)
+    #Provision the devices at the Iota-agent
+    iotac.post_device(device=building_000, update=True)
 
     #check in the context broker if the entities corresponding to the buildings
-    cbc.get_entity(entity_id="urn:ngsi-ld:building:00", entity_type="Building")
+    print(cbc.get_entity(building_000.entity_name).json(indent=2))
 
     #get the energy data of the buildings
     b0_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building0.csv")
-    demand_00=list(b0_df["res_load"])
-    production_00=list(b0_df["res_inj"])
+    demand_000 = list(b0_df["res_load"])
+    production_000 = list(b0_df["res_inj"])
 
-    b1_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building1.csv")
-    b2_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building2.csv")
-    b3_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building3.csv")
-    b4_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building4.csv")
-    b5_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building5.csv")
+    #b1_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building1.csv")
+   # b2_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building2.csv")
+   # b3_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building3.csv")
+    #b4_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building4.csv")
+   # b5_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building5.csv")
 
-    #define a vocabulary to store the energydata
-    building_energy_data= []
 
-    def on_message(client, userdata, msg):
-       payload = msg.payload.decode('utf-8')
-       building_energy_data.append(json.loads(payload))
 
-    #add call back function to the client
-    mqttc.on_message=on_message
+    #create an MQTTv5 Client
+    mqttc= IoTAMQTTClient(protocol=mqtt.MQTTv5)
 
-    #mqtt connect and subscribe the topic
-    mqtt_url=urlparse(MQTT_URL)
+    #register service group for MQTTv5
+    mqttc.add_service_group(service_group=service_group)
+    #register the devices for MQTTv5 client
+    mqttc.add_device(building_000)
+
+    #connect to mqtt broker and subscribe the topic
+    mqtt_url = urlparse(MQTT_Broker_URL)
     mqttc.connect(host=mqtt_url.hostname,
-                 port=mqtt_url.port,
-                 keepalive=60,
-                 bind_address="",
-                 bind_port=0,
-                 clean_start=mqtt.MQTT_CLEAN_START_FIRST_ONLY,
-                 properties=None)
-    mqttc.subscribe(topic=Topic_Energy_Building)
+                  port=mqtt_url.port,
+                  keepalive=60,
+                  bind_address="",
+                  bind_port=0,
+                  clean_start=mqtt.MQTT_CLEAN_START_FIRST_ONLY,
+                  properties=None)
 
+    #subcribe to the topics
+    mqttc.subscribe()
     # create a non-blocking thread for mqtt communication
     mqttc.loop_start()
 
     #create a loop that publishes the energydata every hour to the context broker
-    for t_sim in (int(t_start),int(t_end),int(t_step)):
-        mqttc.publish(topic=Topic_Energy_Building,
-                      payload=json.dumps({"demand": demand_00[t_sim],
-                                          "t_sim": t_sim}))
-        #simulation for next loop
+    for t_sim in (int(t_start), int(t_end), int(t_step)):
+        mqttc.publish(device_id=building_000.device_id,
+                      payload={"simtime": t_sim,
+                               "demand": demand_000[t_sim],
+                               "production": production_000[t_sim]})
+
+        #wait for 1second before publishing next values
         time.sleep(1)
 
+    #Get corresponding entities and add values to history
+    building_000_entity = cbc.get_entity(entity_id=building_000.entity_name,
+                                         entity_type=building_000.entity_type)
+    #append the data to history
+    history_demand.append({"simtime": building_000_entity.simtime.value,
+                           "demand": building_000_entity.demand.value})
+    history_production.append({"simtime": building_000_entity.simtime.value,
+                               "production": building_000_entity.production.value})
     #close the mqtt listening thread
     mqttc.loop_stop()
 
@@ -113,8 +142,20 @@ if __name__ == '__main__':
 
     #plot results
     fig, ax = plt.subplots()
-    t_simulation = [item["t_sim"] for item in building_energy_data]
-    demand=[item["demand"] for item in building_energy_data]
+    t_simulation = [item["simtime"] for item in history_demand]
+    demand = [item["demand"] for item in history_demand]
     ax.plot(t_simulation, demand)
     ax.set_xlabel('time in hour')
-    ax.set_ylabel('demand for next hour')
+    ax.set_ylabel('demand in kwh')
+
+    fig2, ax2 = plt.subplots()
+    t_simulation = [item["simtime"] for item in history_production]
+    production = [item["demand"] for item in history_production]
+    ax.plot(t_simulation, production)
+    ax.set_xlabel('time in hour')
+    ax.set_ylabel('demand in kwh')
+
+    plt.show()
+
+    clear_context_broker(url=CB_URL, fiware_header=fiware_header)
+    clear_iot_agent(url=IOTA_URL, fiware_header=fiware_header)
