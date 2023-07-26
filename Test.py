@@ -4,9 +4,9 @@ from filip.clients.mqtt import IoTAMQTTClient
 from filip.models.base import FiwareHeader
 from filip.utils.cleanup import clear_context_broker, clear_iot_agent, clear_quantumleap
 from filip.models.ngsi_v2.iot import \
-    Device, \
-    DeviceAttribute, \
-    ServiceGroup
+     Device, \
+     DeviceAttribute, \
+     ServiceGroup
 
 #import form packages
 import paho.mqtt.client as mqtt
@@ -24,7 +24,7 @@ MQTT_Broker_URL ="mqtt://134.130.166.184:1883"
 #database
 Service = 'lem_test'
 Service_path = '/'
-APIKEY = Service_path.strip('/')
+APIKEY = 'jdu-zwu'
 
 #simulation time
 t_start = 0
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     clear_iot_agent(url=IOTA_URL, fiware_header=fiware_header)
 
 
-    #create the clients and restore devices
+    #create the clients
     cbc = ContextBrokerClient(url=CB_URL, fiware_header=fiware_header)
     iotac = IoTAClient(url=IOTA_URL, fiware_header=fiware_header)
 
@@ -67,8 +67,9 @@ if __name__ == '__main__':
     building_000 = Device(device_id="device:000",
                           entity_name="urn:ngsi-ld:Building:000",
                           entity_type="Building",
-                          protocol='IOTA_JSON',
+                          protocol='IoTA-JSON',
                           transport='MQTT',
+                          apikey=APIKEY,
                           attributes=[t_sim, t_dem, t_pro],
                           commands=[])
 
@@ -86,10 +87,10 @@ if __name__ == '__main__':
     production_000 = list(b0_df["res_inj"])
 
     #b1_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building1.csv")
-   # b2_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building2.csv")
-   # b3_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building3.csv")
+    #b2_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building2.csv")
+    #b3_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building3.csv")
     #b4_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building4.csv")
-   # b5_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building5.csv")
+    #b5_df = pd.read_csv("T:\jdu-zwu\Test\operations_1h/building5.csv")
 
 
 
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     mqttc.loop_start()
 
     #create a loop that publishes the energydata every hour to the context broker
-    for t_sim in (int(t_start), int(t_end), int(t_step)):
+    for t_sim in range(int(t_start), int(t_end), int(t_step)):
         mqttc.publish(device_id=building_000.device_id,
                       payload={"simtime": t_sim,
                                "demand": demand_000[t_sim],
@@ -126,14 +127,14 @@ if __name__ == '__main__':
         #wait for 1second before publishing next values
         time.sleep(1)
 
-    #Get corresponding entities and add values to history
-    building_000_entity = cbc.get_entity(entity_id=building_000.entity_name,
-                                         entity_type=building_000.entity_type)
-    #append the data to history
-    history_demand.append({"simtime": building_000_entity.simtime.value,
-                           "demand": building_000_entity.demand.value})
-    history_production.append({"simtime": building_000_entity.simtime.value,
-                               "production": building_000_entity.production.value})
+        #Get corresponding entities and add values to history
+        building_000_entity = cbc.get_entity(entity_id=building_000.entity_name,
+                                             entity_type=building_000.entity_type)
+        #append the data to history
+        history_demand.append({"simtime": building_000_entity.simtime.value,
+                               "demand": building_000_entity.demand.value})
+        history_production.append({"simtime": building_000_entity.simtime.value,
+                                   "production": building_000_entity.production.value})
     #close the mqtt listening thread
     mqttc.loop_stop()
 
@@ -150,10 +151,10 @@ if __name__ == '__main__':
 
     fig2, ax2 = plt.subplots()
     t_simulation = [item["simtime"] for item in history_production]
-    production = [item["demand"] for item in history_production]
-    ax.plot(t_simulation, production)
-    ax.set_xlabel('time in hour')
-    ax.set_ylabel('demand in kwh')
+    production = [item["production"] for item in history_production]
+    ax2.plot(t_simulation, production)
+    ax2.set_xlabel('time in hour')
+    ax2.set_ylabel('production in kwh')
 
     plt.show()
 
