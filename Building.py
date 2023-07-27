@@ -3,6 +3,7 @@ class Building:
     def __init__(self, id):
         self.data = self.load_csv_data()
         self.initialization()
+        mqtt_client = self.mqtt_initialization()
 
     def publish_data(self, time_index):
         pass
@@ -17,5 +18,4 @@ class Building:
     def load_csv_data(self):
         csv_data = read_from_csv() # TODO
         return csv_data
-
 
