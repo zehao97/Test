@@ -2,7 +2,6 @@
 from filip.clients.ngsi_v2 import ContextBrokerClient, IoTAClient
 from filip.clients.mqtt import IoTAMQTTClient
 from filip.models.base import FiwareHeader
-from filip.utils.cleanup import clear_context_broker, clear_iot_agent
 from filip.models.ngsi_v2.iot import \
      Device, \
      DeviceAttribute, \
@@ -36,21 +35,18 @@ class Building:
 
     def __init__(self, id):
         self.id = id
-        self.load_csv_data()
-        self.building_device()
+        self.data_demand, self.data_production = self.load_csv_data()
+        self.device = self.building_device()
         self.initialization()
         self.mqtt_initialization()
 
 
     def publish_data(self, time_index):
-        # call the lists of data in function load_csv_data
-        data_demand, data_production = self.load_csv_data()
-
         # publish the device and data
         self.mqttc.publish(device_id=self.building_device().device_id,
                            payload={"simtime": time_index,
-                                    "demand": data_demand[time_index],
-                                    "production": data_production[time_index]})
+                                    "demand": self.data_demand[time_index],
+                                    "production": self.data_production[time_index]})
         #wait for 1second before publishing next values
         time.sleep(1)
 
@@ -71,8 +67,8 @@ class Building:
                                 object_id='t_pro',
                                 type='Number')
 
-        building = Device(device_id=device_number[self.id],
-                          entity_name=entity_n[self.id],
+        building = Device(device_id=f"device:{self.id}",
+                          entity_name=f"urn:ngsi-ld:Building:{self.id}",
                           entity_type="Building",
                           protocol='IoTA-JSON',
                           transport='MQTT',
@@ -83,10 +79,6 @@ class Building:
 
 
     def initialization(self):
-        # clear the state of context broker and iot agent
-        clear_context_broker(url=CB_URL, fiware_header=fiware_header)
-        clear_iot_agent(url=IOTA_URL, fiware_header=fiware_header)
-
         # create the clients
         self.cbc = ContextBrokerClient(url=CB_URL, fiware_header=fiware_header)
         self.iotac = IoTAClient(url=IOTA_URL, fiware_header=fiware_header)
@@ -95,9 +87,10 @@ class Building:
         # Provision service group and add it to your IOTAClient
         self.iotac.post_group(service_group=service_group, update=True)
         # Provision the devices at the Iota-agent
-        self.iotac.post_device(device=self.building_device(), update=True)
+        self.iotac.post_device(device=self.device, update=True)
         # check in the context broker if the entities corresponding to the buildings
-        print(self.cbc.get_entity(self.building_device().entity_name).json(indent=2))
+        print(self.cbc.get_entity(self.device.entity_name).json(indent=2))
+        pass
 
 
 
@@ -124,6 +117,7 @@ class Building:
         self.mqttc.subscribe()
         # create a non-blocking thread for mqtt communication
         self.mqttc.loop_start()
+
 
 
     def load_csv_data(self):
