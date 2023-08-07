@@ -2,7 +2,7 @@
 from filip.clients.ngsi_v2 import ContextBrokerClient, IoTAClient
 from filip.clients.mqtt import IoTAMQTTClient
 from filip.models.base import FiwareHeader
-from filip.utils.cleanup import clear_context_broker, clear_iot_agent, clear_quantumleap
+from filip.utils.cleanup import clear_context_broker, clear_iot_agent
 from filip.models.ngsi_v2.iot import \
      Device, \
      DeviceAttribute, \
