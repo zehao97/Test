@@ -1,5 +1,5 @@
 from Building import Building
-from Coordinator import Coordinator
+from Coordinator import Coordinator, EnergySupplier
 from filip.models.base import FiwareHeader
 from filip.utils.cleanup import clear_context_broker, clear_iot_agent
 import os
@@ -15,37 +15,36 @@ MQTT_Broker_URL = os.getenv('MQTT_Broker_URL')
 if __name__ == '__main__':
     clear_context_broker(url=CB_URL, fiware_header=fiware_header)
     clear_iot_agent(url=IOTA_URL, fiware_header=fiware_header)
+
+    # define energy supplier to handle the energy data
+    supplier = EnergySupplier()
     #call Class Buidling
     buildings = [Building(id=i) for i in range(5)]  # TODO set the id properly
-    #define lists to store historical data
-    buildings_demand = []
-    buildings_production = []
-
-    time_index = list(range(24))
+    time_index = list(range(3))
     for i in time_index:
         # Step 1
         for building in buildings:
             building.publish_data(time_index=i)
 
-            #Get corresponding entities and add values to history
-            building_entity = building.cbc.get_entity(building.device.entity_name)
-            buildings_demand.append({"time_index": building_entity.simtime.value,
-                                     "demand": building_entity.demand.value})
-            buildings_production.append({"time_index": building_entity.simtime.value,
-                                         "production": building_entity.production.value})
+            #Get corresponding entities and send datas to energy supplier
+            supplier.get_entity(id=buildings.index(building))
+            supplier.read_data()
+
             # close the mqtt listening thread
             building.mqttc.loop_stop()
 
             # disconnect the mqtt device
             building.mqttc.disconnect()
+        supplier.accounting(time_index=i)
+
 
     #Step 2
     #call Class Coordinator
-    coordinator = Coordinator()
+    #coordinator = Coordinator()
     # TODO market algorithm
-    coordinator.read_data()
-    coordinator.balancing()
-    coordinator.feed_back()
+    #coordinator.read_data()
+    #coordinator.balancing()
+    #coordinator.feed_back()
 
     # Step 3
     # TODO not necessarily required

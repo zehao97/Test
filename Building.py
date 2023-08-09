@@ -52,10 +52,6 @@ class Building:
 
 
     def building_device(self):
-        #make the list of device id and entity names
-        device_number = ["device:000", "device:001", "device:002", "device:003", "device:004"]
-        entity_n = ["urn:ngsi-ld:Building:000", "urn:ngsi-ld:Building:001", "urn:ngsi-ld:Building:002",
-                    "urn:ngsi-ld:Building:003", "urn:ngsi-ld:Building:004"]
         # create the  building's device, simulate time attribute, demand of building attribute and production of building attribute
         t_sim = DeviceAttribute(name='simtime',
                                 object_id='t_sim',
@@ -122,11 +118,11 @@ class Building:
 
     def load_csv_data(self):
         #create list for the name of csv_files
-        csv_files = ["T:\jdu-zwu\Test\operations_1h/building0.csv",
-                     "T:\jdu-zwu\Test\operations_1h/building1.csv",
-                     "T:\jdu-zwu\Test\operations_1h/building2.csv",
-                     "T:\jdu-zwu\Test\operations_1h/building3.csv",
-                     "T:\jdu-zwu\Test\operations_1h/building4.csv"]
+        csv_files = ["T:\jdu-zwu\Test Buildings\operations_1h/building0.csv",
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building1.csv",
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building2.csv",
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building3.csv",
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building4.csv"]
 
         # get the energy data of the buildings
         b_df = pd.read_csv(csv_files[self.id])
