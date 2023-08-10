@@ -43,10 +43,14 @@ class Building:
 
     def publish_data(self, time_index):
         # publish the device and data
+        payload = {
+            "simtime": time_index,
+            "demand": self.data_demand[time_index],
+            "production": self.data_production[time_index]
+        }
         self.mqttc.publish(device_id=self.building_device().device_id,
-                           payload={"simtime": time_index,
-                                    "demand": self.data_demand[time_index],
-                                    "production": self.data_production[time_index]})
+                           payload=payload)
+        print(payload)
         #wait for 1second before publishing next values
         time.sleep(1)
 
@@ -122,11 +126,19 @@ class Building:
                      "T:\jdu-zwu\Test Buildings\operations_1h/building1.csv",
                      "T:\jdu-zwu\Test Buildings\operations_1h/building2.csv",
                      "T:\jdu-zwu\Test Buildings\operations_1h/building3.csv",
-                     "T:\jdu-zwu\Test Buildings\operations_1h/building4.csv"]
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building4.csv",
+                     "T:\jdu-zwu\Test Buildings\operations_1h/building5.csv"]
 
         # get the energy data of the buildings
         b_df = pd.read_csv(csv_files[self.id])
         demand = list(b_df["res_load"])
         production = list(b_df["res_inj"])
         return demand, production
+
+    def shutdown(self):
+        # close the mqtt listening thread
+        self.mqttc.loop_stop()
+
+        # disconnect the mqtt device
+        self.mqttc.disconnect()
 
